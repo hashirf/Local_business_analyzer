@@ -52,39 +52,47 @@ def main():
     
     api_key = st.text_input("Enter your Google Maps API Key:", type="password")
     
-    zip_code = st.text_input("📍 ZIP Code for Places Search:")
+    # Assuming you have a predefined list of ZIP codes for places search and target locations.
+    # Example format: "12345:54321,23456:65432" where each pair is "place_search_zip:target_location_zip"
+    zip_codes_input = st.text_input("Enter ZIP Code pairs (format 'search:target,search:target'): ")
     search_terms_input = st.text_input("Search Terms (e.g., 'hvac repair, plumbing'):", help="Enter search terms separated by commas.")
-    target_location = st.text_input("Target Location for Distance Calculation:")
-
+    
     if st.button("Search Places and Calculate Distances"):
-        if not api_key or not zip_code or not search_terms_input or not target_location:
+        if not api_key or not zip_codes_input or not search_terms_input:
             st.error("Please fill in all fields.")
         else:
             all_results = []
+            zip_code_pairs = [pair.strip() for pair in zip_codes_input.split(',')]
             search_terms = [term.strip() for term in search_terms_input.split(',')]
             
-            for search_term in search_terms:
-                places = search_places(api_key, search_term, zip_code)
-                if places:
-                    for place in places:
-                        place_name = place["name"]
-                        place_address = place.get("formatted_address", "Address not available")
-                        distance, duration = get_directions(api_key, place_address, target_location)
-                        zip_code_extracted = extract_zip_code_from_address(place_address)
-                        result = {
-                            "Search Term": search_term,
-                            "Name": place_name,
-                            "Address": place_address,
-                            "ZIP Code": zip_code_extracted,
-                            "Distance": distance,
-                            "Duration": duration
-                        }
-                        all_results.append(result)
+            for zip_pair in zip_code_pairs:
+                zip_codes = zip_pair.split(':')
+                if len(zip_codes) == 2:
+                    search_zip, target_zip = zip_codes
+                    for search_term in search_terms:
+                        places = search_places(api_key, search_term, search_zip)
+                        if places:
+                            for place in places:
+                                place_name = place["name"]
+                                place_address = place.get("formatted_address", "Address not available")
+                                distance, duration = get_directions(api_key, place_address, target_zip)
+                                zip_code_extracted = extract_zip_code_from_address(place_address)
+                                result = {
+                                    "Search Term": search_term,
+                                    "Search ZIP": search_zip,
+                                    "Target ZIP": target_zip,
+                                    "Name": place_name,
+                                    "Address": place_address,
+                                    "ZIP Code": zip_code_extracted,
+                                    "Distance": distance,
+                                    "Duration": duration
+                                }
+                                all_results.append(result)
             
             if all_results:
                 df_results = pd.DataFrame(all_results)
                 st.write(df_results)
-               
+                
                 csv = df_results.to_csv(index=False).encode('utf-8')
                 st.download_button(
                     label="Download Results as CSV",
@@ -93,10 +101,11 @@ def main():
                     mime='text/csv',
                 )
             else:
-                st.write("No places found for the given search terms in the ZIP code area.")
+                st.write("No places found for the given search terms and ZIP code pairs.")
 
 if __name__ == "__main__":
     main()
+
 
 
 
